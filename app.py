@@ -4,6 +4,7 @@ import streamlit as st
 from common import bond_price, curve_chart, modified_duration, quiz, takeaway
 from fundamentals import page_checklist, page_growth_moat, page_health, page_quality, page_statements, page_valuation
 from news import page_news
+from my_stocks import page_my_stocks
 
 st.set_page_config(page_title="美股基本面入門課", page_icon="📚", layout="wide")
 
@@ -567,6 +568,7 @@ PAGES = {
     "12. 估值": page_valuation,
     "13. 實戰檢查表": page_checklist,
     "🗞️ 時事教室（即時更新）": page_news,
+    "⭐ 我的自選股（富途）": page_my_stocks,
     "總複習測驗": page_final,
     "📖 名詞速查表": page_glossary,
 }

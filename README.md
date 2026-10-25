@@ -6,6 +6,7 @@ Streamlit 學習網站：總經篇（單元 1–7）、個股基本面篇（單�
 - `app.py`：首頁、總經單元與導覽
 - `fundamentals.py`：個股基本面單元 8–13
 - `news.py` / `news_data.json`：時事教室。頂端指標由 `live_data.py` 從 FRED 即時抓取；案例文字在 `news_data.json`
+- `my_stocks.py` / `futu_client.py` / `signals.py`：『我的自選股』過熱與回檔儀表板。只在本機連富途 OpenD（唯讀，無交易功能）；線上版只顯示虛構示範資料
 - `check_news.py`：驗證 `news_data.json` 結構（`python check_news.py`）
 
 ## 時事教室如何更新
@@ -14,3 +15,8 @@ Streamlit 學習網站：總經篇（單元 1–7）、個股基本面篇（單�
 - 想手動更新：直接編輯 `news_data.json`，跑 `python check_news.py`，再 push。
 
 學習筆記，非投資建議；個股範例皆為虛構。
+
+## 本機連接富途牛牛
+1. 安裝並登入 OpenD（預設 127.0.0.1:11111）
+2. `pip install -r requirements-local.txt`
+3. `streamlit run app.py` → 側欄『⭐ 我的自選股（富途）』

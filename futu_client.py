@@ -20,6 +20,9 @@ def futu_available():
         return False
 
 
+_TECH = {}  # code -> (日期, {'rsi','dist200'})：同一天不重複請求日 K
+
+
 class FutuError(Exception):
     pass
 
@@ -69,18 +72,41 @@ def load_watchlist(host, port, group, use_kline, max_kline):
         df["rsi"], df["dist200"] = np.nan, np.nan
 
         if use_kline:
+            import signals
+
             start = (date.today() - timedelta(days=420)).strftime("%Y-%m-%d")
             end = date.today().strftime("%Y-%m-%d")
-            targets = list(df["code"])[:max_kline]
-            if len(df) > max_kline:
-                notes.append(f"歷史 K 線只取前 {max_kline} 檔（避免用光額度），其餘只用報價與估值訊號。")
+
+            # 歷史 K 線有額度（約 7 天釋放）。已經抓過的股票不再耗額度，優先處理；
+            # 剩餘額度再依『只看報價就已有明顯訊號』的程度分配。
+            ret, q = ctx.get_history_kl_quota(get_detail=True)
+            fetched, remain = set(), max_kline
+            if ret == RET_OK:
+                _, remain_quota, detail = q
+                fetched = {d["code"] for d in detail}
+                remain = min(max_kline, max(remain_quota - 3, 0))  # 留 3 檔緩衝
+            pre = signals.evaluate(df, 4.5)
+            pre["strength"] = pre["heat"] + pre["cheap"]
+            ranked = list(pre.sort_values("strength", ascending=False)["code"])
+            free = [c for c in ranked if c in fetched]
+            new = [c for c in ranked if c not in fetched][:remain]
+            targets = free + new
+            skipped = len(df) - len(targets)
+            if skipped > 0:
+                notes.append(f"歷史 K 線額度有限，這次有 {skipped} 檔沒有計算 RSI／200 日線（只用報價與估值訊號）。"
+                             f"已抓過的 {len(free)} 檔不再耗額度。")
+            today = date.today().isoformat()
             for code in targets:
+                idx = df.index[df["code"] == code][0]
+                if code in _TECH and _TECH[code][0] == today:
+                    df.loc[idx, "rsi"], df.loc[idx, "dist200"] = _TECH[code][1]["rsi"], _TECH[code][1]["dist200"]
+                    continue
                 ret, data, _ = ctx.request_history_kline(code, start=start, end=end, ktype="K_DAY", autype="qfq")
                 if ret != RET_OK:
                     notes.append(f"{code} 日 K 取得失敗：{data}")
                 else:
                     t = tech_from_closes(data["close"])
-                    idx = df.index[df["code"] == code][0]
+                    _TECH[code] = (today, t)
                     df.loc[idx, "rsi"], df.loc[idx, "dist200"] = t["rsi"], t["dist200"]
                 time.sleep(0.55)  # 官方限制：30 秒最多 60 次
         return df, notes

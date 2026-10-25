@@ -67,7 +67,7 @@ def page_my_stocks():
         default = groups.index("美股") if "美股" in groups else 0
         group = st.selectbox("自選股分組", groups, index=default)
         use_kline = st.checkbox("計算技術面（RSI、200 日線），會使用歷史 K 線額度", value=True)
-        max_kline = st.slider("最多抓幾檔的歷史 K 線", 5, 100, 30)
+        max_kline = st.slider("最多抓幾檔的歷史 K 線（額度約 100 檔／7 天）", 5, 100, 70)
         if st.button("載入自選股", type="primary"):
             load_watchlist.clear()
         try:
@@ -115,16 +115,18 @@ def page_my_stocks():
     # ---- 結果 ----
     st.subheader("② 結果")
     hot = res[res["label"].str.startswith(("🔥", "🟠"))].sort_values("heat", ascending=False)
-    research = res[res["label"].str.startswith(("🟢", "🔵", "🟡"))].sort_values("cheap", ascending=False)
+    research = res[res["label"].str.startswith(("🟢", "🔵", "🟡", "🟣"))].sort_values(["has_pe", "cheap"], ascending=[False, False])
     k = st.columns(3)
     k[0].metric("🔥／🟠 偏熱的", len(hot))
-    k[1].metric("🟢／🔵／🟡 回檔觀察", len(research))
+    k[1].metric("🟢／🔵／🟡／🟣 回檔觀察", len(research))
     k[2].metric("⚪ 中性", len(res) - len(hot) - len(research))
 
-    def show(sub, empty):
+    def show(sub, empty, top=8):
         if sub.empty:
             st.caption(empty)
-        for _, r in sub.iterrows():
+        if len(sub) > top:
+            st.caption(f"共 {len(sub)} 檔，這裡列出最明顯的前 {top} 檔，完整清單在下方『全部明細』。")
+        for _, r in sub.head(top).iterrows():
             st.markdown(f"**{r['name']}** `{r['code']}`　{r['label']}")
             st.caption(r["reasons"] or "—")
 
@@ -136,7 +138,7 @@ def page_my_stocks():
         st.markdown("#### 🟢 回檔觀察：優先做功課")
         show(research, "目前沒有符合條件的標的。")
     st.caption("『過熱』不代表馬上會跌，強勢股可以更熱；『回檔』不代表便宜，可能是基本面變差。"
-               "🟢 = 價格訊號 + 你填的品質數字都過關；🔵 = 價格訊號有，但品質還沒驗證；🟡 = 價格低但品質數字有缺口，價值陷阱風險。")
+               "🟢 = 價格訊號 + 你填的品質數字都過關；🔵 = 價格訊號有，但品質還沒驗證；🟡 = 價格低但品質數字有缺口，價值陷阱風險；🟣 = 目前虧損或沒有 P/E，回檔不代表便宜，風險最高。")
 
     with st.expander("全部明細"):
         out = pd.DataFrame({
@@ -145,7 +147,7 @@ def page_my_stocks():
             "52週位置%": (res["pos52"] * 100).round(0), "距高點回檔%": (res["drawdown"] * 100).round(0),
             "RSI": res["rsi"].round(0), "距200日線%": (res["dist200"] * 100).round(0),
             "過熱分": res["heat"], "回檔分": res["cheap"], "品質通過率": (res["quality"] * 100).round(0),
-            "判斷": res["label"],
+            "技術面": np.where(res["rsi"].notna(), "✓", "—"), "判斷": res["label"],
         })
         st.dataframe(out, hide_index=True)
 

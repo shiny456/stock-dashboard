@@ -58,6 +58,7 @@ def evaluate(df, y10):
     rows = []
     for _, r in df.iterrows():
         heat, cheap = 0, 0
+        val_pts = 0
         why_hot, why_cold = [], []
 
         price, hi, lo = r.get("price"), r.get("high52"), r.get("low52")
@@ -88,11 +89,11 @@ def evaluate(df, y10):
             heat += 1; why_hot.append(f"貼近 52 週高點（位置 {pos52:.0%}）")
         if pe_ok:
             if erp < 0:
-                heat += 1; why_hot.append(f"盈餘殖利率 {ey:.1f}% 低於 10Y {y10:.2f}%")
+                heat += 1; val_pts += 1; why_hot.append(f"盈餘殖利率 {ey:.1f}% 低於 10Y {y10:.2f}%")
             else:
                 cheap += 1; why_cold.append(f"盈餘殖利率高於 10Y {erp:+.1f} 個百分點")
             if pe >= PE_HIGH:
-                heat += 1; why_hot.append(f"P/E {pe:.0f}（≥{PE_HIGH}）")
+                heat += 1; val_pts += 1; why_hot.append(f"P/E {pe:.0f}（≥{PE_HIGH}）")
         if _valid(drawdown):
             if drawdown >= DRAWDOWN_DEEP:
                 cheap += 2; why_cold.append(f"距 52 週高點回檔 {drawdown:.0%}")
@@ -114,10 +115,19 @@ def evaluate(df, y10):
         if heat >= 4:
             label = "🔥 過熱警示"
         elif heat >= 2:
-            label = "🟠 偏熱／偏貴"
+            mom_pts = heat - val_pts
+            if val_pts > mom_pts:
+                label = "🟠 估值偏貴"
+            elif mom_pts > val_pts:
+                label = "🟠 動能偏熱"
+            else:
+                label = "🟠 偏熱／偏貴"
         elif cheap >= 2 and heat <= 1:
             if _valid(quality):
                 label = "🟢 優先研究" if quality >= 0.75 else "🟡 價格低但品質存疑"
+            elif not pe_ok:
+                label = "🟣 回檔中・無 P/E（虧損或無資料）"
+                why_cold.append("無 P/E：價格回檔不代表便宜，風險較高")
             else:
                 label = "🔵 回檔中（品質未驗證）"
         else:
@@ -125,5 +135,6 @@ def evaluate(df, y10):
 
         reasons = "；".join(why_hot + why_cold + ([f"未達：{'、'.join(fails)}"] if fails else []))
         rows.append({**r.to_dict(), "pos52": pos52, "drawdown": drawdown, "ey": ey, "erp": erp,
-                     "heat": heat, "cheap": cheap, "quality": quality, "label": label, "reasons": reasons})
+                     "heat": heat, "cheap": cheap, "quality": quality, "label": label, "reasons": reasons,
+                     "has_pe": bool(pe_ok), "val_pts": val_pts, "mom_pts": heat - val_pts})
     return pd.DataFrame(rows)

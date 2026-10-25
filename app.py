@@ -1,352 +1,576 @@
-import streamlit as st
-import yfinance as yf
-import pandas_ta as ta
 import pandas as pd
+import streamlit as st
+
+st.set_page_config(page_title="美股基本面入門課", page_icon="📚", layout="wide")
+
 
 # ====================================================
-# 1. 知識複習區內容 (用戶提供 - investment_notes_full)
+# 共用元件
 # ====================================================
 
-investment_notes_full = {
-    "title": "股叔實戰心法：A+資產金字塔佈局與鐵血紀律",
-    "sections": [
-        {
-            "heading": "0. 核心概念與結論",
-            "points": [
-                "文章宗旨：學習在頂級資產上進行有紀律的「左側」金字塔佈局，並搭配鐵血止損紀律。",
-                "三大原則：挑選 A+ 資產、設好撤退計畫、執行混合佈局。",
-                "結論：追求最高的確定性（右側趨勢），而非最低的成本；紀律是生存的唯一保證。"
-            ]
-        },
-        {
-            "heading": "1. 戰前準備：選好你的戰場（A+ 資產篩選）",
-            "points": [
-                "**目標**：找未來五到十年放著不擔心的頂級「龍頭股」，這比你老婆生日還重要（這是生存問題）。",
-                "**堅不可摧的「護城河」**：必須擁有近乎壟斷的競爭優勢（技術專利、網路效應、國家戰略）。護城河裡要有鱷魚、食人魚，還要拉高壓電網。",
-                "範例：TSM（國家戰略難以複製）、NVDA CUDA（所有開發者都在上面，轉換痛苦）。",
-                "**堡壘般的「資產負債表」**：現金充裕、負債極低。現金必須遠遠大於短期負債，甚至最好能覆蓋總負債，確保經濟衰退三年也能活下來。",
-                "**意義**：這是「贏家通吃」的本錢，能趁機便宜收購快餓死的競爭對手。",
-                "**清晰可見的「長期劇本」**：能分清「短期逆風」（基本盤未變，如 META 面對 ATT 打擊）與「長期衰退」（被時代淘汰，如 KODK）。"
-            ]
-        },
-        {
-            "heading": "2. 戰前準備：設定撤退計畫（止損的鐵血紀律）",
-            "points": [
-                "**止虧是紀律，不是藝術**。多數人賠光不是因為看錯，而是看錯了還不肯走（不願「實現」虧損）。",
-                "**核心目的**：保住你的本金，讓你明天還有子彈上戰場。",
-                "**新手級（固定 %）**：容易被「洗出場」（Whipsawed），前腳剛賣後腳就漲，不尊重股票波動率。",
-                "**進階級（技術指標）**：讓市場客觀訊號告訴你趨勢不對。",
-                "**訊號**：明確跌破 **50 日均線**（中期生命線）或 **200 日均線**（牛熊分界線），或關鍵支撐位（多頭與空頭的防線被攻破）。",
-                "**高手級（基本面停損）**：你的止損點是當初買入的「理由」。只要「護城河、資產負債表、長期劇本」這三點不變，就忍受短期的技術波動。一旦改變，**立刻砍倉**。",
-                "**執行**：砍倉要拔得又快、又狠、又準，拔得太慢就容易當爸爸。"
-            ]
-        },
-        {
-            "heading": "3. 戰時部署：金字塔式混合策略 (V3.0)",
-            "points": [
-                "**策略精髓**：結合了「左側」的勇氣和「右側」的智慧。",
-            ],
-            "subsections": [
-                {
-                    "sub_heading": "第一階段：部署「偵察兵」（左側佈局）",
-                    "sub_points": [
-                        "時機：股價位於「黃金坑」、市場一片悲觀時，新聞頭條都是壞消息。",
-                        "動作：執行「小額、分批、拉長週期」的 DCA。",
-                        "資金：總預算僅佔總計畫倉位的 10-12%（偵察兵不是主力部隊）。",
-                        "心態：目的只是拿到「入場券」，做好了倉位可能還會再跌 20% 的心理準備。這叫**有紀律的攤平**。"
-                    ]
-                },
-                {
-                    "sub_heading": "第二階段：投入「主力部隊」（右側追擊）",
-                    "sub_points": [
-                        "時機：耐心等待一個明確的「反轉訊號」（號角吹響）。大多數散戶在左側就把子彈打光了。",
-                        "技術訊號：**站穩 200 日均線並上彎**（最常用訊號），或 50 日均線黃金交叉 200 日均線。",
-                        "動作：一旦響起，果斷將主力部隊（剩餘 30-50% 資金）投入起漲點。",
-                        "心態：平均成本會被拉高，但追求的是**最高的確定性**，而不是最低成本。"
-                    ]
-                }
-            ]
-        },
-        {
-            "heading": "4. 關鍵戰役：如何應對「財報」？",
-            "points": [
-                "**核心認知**：財報日是「賭場」。決定漲跌的是「業績 vs. 市場變態的超高預期」。你只是散戶，玩不過他們。",
-                "**長線投資者（A+資產）**：**抱著不動**（Hold）。你買入是為了未來 5~10 年。若因財報下跌，只要基本面停損理由未出現，就是**左側補倉機會**。",
-                "**交易者（已獲利）**：**推薦：賣出一半 (Trim Half)**。在財報前一天收盤賣掉 1/2，拿回成本與部分利潤，用零成本的「利潤股」去賭財報，達到「大叔的睡得著覺策略」。",
-                "**警惕**：永遠不要看不起「已實現」的獲利（「豬養肥了，就是要殺的」）。",
-                "**嚴格禁止**：如果你還沒進場，想「賭」財報。這是 100% 的賭博，不要用辛苦錢去賭一個「業績盲盒」。"
-            ]
-        }
+def quiz(key, question, options, answer, explain):
+    """單題測驗：選完按「送出」才顯示對錯與解析，成績記在 session_state。"""
+    st.markdown(f"**{question}**")
+    choice = st.radio("選擇答案", options, index=None, key=f"q_{key}", label_visibility="collapsed")
+    if st.button("送出答案", key=f"b_{key}"):
+        if choice is None:
+            st.warning("先選一個答案喔")
+            return
+        correct = options.index(choice) == answer
+        st.session_state.setdefault("scores", {})[key] = correct
+        if correct:
+            st.success(f"答對了！{explain}")
+        else:
+            st.error(f"再想想～正確答案是「{options[answer]}」。{explain}")
+
+
+def takeaway(*points):
+    st.info("**本課重點**\n\n" + "\n".join(f"- {p}" for p in points))
+
+
+def bond_price(face, coupon_rate, ytm, years, freq=2):
+    n = int(round(years * freq))
+    c = face * coupon_rate / freq
+    y = ytm / freq
+    if y == 0:
+        return c * n + face
+    return sum(c / (1 + y) ** t for t in range(1, n + 1)) + face / (1 + y) ** n
+
+
+def modified_duration(face, coupon_rate, ytm, years, freq=2):
+    """用 ±1bp 價格差數值估算修正存續期間。"""
+    p0 = bond_price(face, coupon_rate, ytm, years, freq)
+    up = bond_price(face, coupon_rate, ytm + 0.0001, years, freq)
+    dn = bond_price(face, coupon_rate, ytm - 0.0001, years, freq)
+    return (dn - up) / (2 * p0 * 0.0001)
+
+
+# ====================================================
+# 各課內容
+# ====================================================
+
+def page_home():
+    st.title("📚 美股基本面入門課")
+    st.caption("從零開始，搞懂股票、債券、利率與 Fed 之間的關係")
+    st.markdown(
+        """
+這是一套給自己重新打底的基礎課程。在看每週美股報告之前，先把這些底層邏輯弄清楚——
+看到「殖利率飆升」「Fed 暗示降息」時，才知道**為什麼**市場會這樣反應。
+
+**學習路線**
+
+| 單元 | 主題 | 你會搞懂 |
+|---|---|---|
+| 1 | 股票的價值從哪來 | 股價、本益比、為什麼成長股對利率敏感 |
+| 2 | 債券基礎 | 殖利率與價格為何反向、存續期間 |
+| 3 | 利率與殖利率曲線 | 政策利率 vs 公債殖利率、倒掛的意義 |
+| 4 | 股債關係 | 蹺蹺板、同跌（2022）、股權風險溢價 |
+| 5 | Fed 升降息的影響 | 傳導機制、各類股差異、降息≠一定漲 |
+| 6 | 通膨與經濟指標 | CPI／PCE／非農，市場在看什麼 |
+| 7 | 景氣循環與資產配置 | 四個階段、60/40、怎麼把它們串起來 |
+| 8 | 總複習測驗 | 檢視自己學會多少 |
+
+👈 從左邊側欄選單開始，建議照順序。每課有互動小工具和小測驗。
+"""
+    )
+    st.warning("本課程為學習筆記，不構成投資建議。數字範例為簡化說明用。")
+
+
+def page_stock():
+    st.header("單元 1｜股票的價值從哪來")
+    st.markdown(
+        """
+### 股票 = 公司未來賺錢能力的所有權
+買股票就是買公司的一小塊。理論上，**股價 ≈ 公司未來所有現金流，換算成今天的價值（折現）**。
+
+- 公司賺越多、成長越快 → 值越多
+- **折現率越高 → 未來的錢換算到今天越不值錢 → 估值越低**
+
+最後這點，就是後面所有「利率影響股市」的核心。
+
+### 常看的三個數字
+| 指標 | 公式 | 白話 |
+|---|---|---|
+| 本益比 P/E | 股價 ÷ 每股盈餘 (EPS) | 用幾年的獲利買回成本；越高代表市場預期越多成長 |
+| 盈餘殖利率 | EPS ÷ 股價（= 1 / PE） | 把股票想成一筆「獲利收益率」，可以直接和債券殖利率比 |
+| 股息殖利率 | 每股股息 ÷ 股價 | 每年領息的比例 |
+"""
+    )
+
+    st.subheader("🧮 互動：折現率改變，合理本益比怎麼變？")
+    st.caption("使用簡化的 Gordon 成長模型：合理 P/E ≈ 配息率 ÷ (折現率 − 長期成長率)。")
+    c1, c2, c3 = st.columns(3)
+    r = c1.slider("折現率（要求報酬率）%", 4.0, 12.0, 8.0, 0.25)
+    g = c2.slider("長期盈餘成長率 %", 0.0, 6.0, 3.0, 0.25)
+    payout = c3.slider("盈餘有多少比例發出/回購 %", 20, 100, 60, 5)
+    if r <= g:
+        st.error("折現率必須大於成長率，模型才成立。")
+    else:
+        pe = (payout / 100) / ((r - g) / 100)
+        st.metric("理論合理 P/E", f"{pe:.1f} 倍")
+        rs = [x / 4 for x in range(int(max(g + 0.5, 4) * 4), 49)]
+        df = pd.DataFrame({"折現率 %": rs, "合理 P/E": [(payout / 100) / ((x - g) / 100) for x in rs]}).set_index("折現率 %")
+        st.line_chart(df)
+        st.caption("折現率從 8% 升到 9%，合理 P/E 會明顯下降——成長率越高的公司，被壓縮得越兇。")
+
+    st.markdown(
+        """
+### 為什麼成長股對利率特別敏感？
+成長股的獲利主要在**很遠的未來**。折現率上升時，越遠的現金流被打折越多，所以科技／成長股的估值比
+「現在就賺很多錢」的價值股更容易受升息打擊。（2022 年 Fed 急速升息，那斯達克跌幅遠大於道瓊就是這個原因。）
+"""
+    )
+    takeaway("股價 = 未來現金流的折現值", "折現率↑ → 估值↓，遠期獲利的公司受影響最大", "P/E 倒數 = 盈餘殖利率，可以和債券殖利率比較")
+    quiz("s1", "其他條件不變，折現率上升時，哪類股票估值通常受到最大壓力？",
+         ["獲利集中在遠期的高成長股", "現金流穩定的公用事業", "已經大量配息的成熟股", "完全不受影響"], 0,
+         "因為遠期現金流被折現得更多。")
+
+
+def page_bond():
+    st.header("單元 2｜債券基礎")
+    st.markdown(
+        """
+### 債券 = 借錢給政府或公司的借據
+你借出本金（面額），對方定期付你**利息（票息）**，到期還本金。
+美國公債 (Treasury) 因為由美國政府背書，通常被視為「無風險利率」的基準。
+
+### 四個關鍵詞
+- **面額**：到期還你多少（通常 100 或 1000）
+- **票面利率**：每年固定付的利息比例，發行時就決定了
+- **到期殖利率 (YTM)**：現在以市價買進、持有到期的**實際年化報酬**——新聞講的「殖利率」就是它
+- **價格**：市場每天交易形成，會波動
+
+### 最重要的規則：殖利率 ↑，價格 ↓
+假設你持有一張 4% 票息的債券，市場上新發行的債券變成 5%，誰還要用原價買你的 4%？
+→ 你的債券價格必須下跌，直到買你的人也能拿到約 5% 的報酬。
+"""
+    )
+
+    st.subheader("🧮 互動：債券價格計算機")
+    c1, c2, c3, c4 = st.columns(4)
+    coupon = c1.number_input("票面利率 %", 0.0, 15.0, 4.0, 0.25)
+    years = c2.slider("剩餘年限", 1, 30, 10)
+    ytm = c3.number_input("目前殖利率 %", 0.1, 15.0, 4.0, 0.25)
+    face = c4.number_input("面額", 100, 10000, 100, 100)
+
+    price = bond_price(face, coupon / 100, ytm / 100, years)
+    dur = modified_duration(face, coupon / 100, ytm / 100, years)
+    m1, m2, m3 = st.columns(3)
+    m1.metric("債券價格", f"{price:.2f}", f"{(price / face - 1) * 100:+.1f}% vs 面額")
+    m2.metric("修正存續期間", f"{dur:.2f} 年")
+    m3.metric("殖利率 +1% 時價格約變動", f"{-dur:.1f}%")
+
+    ys = [x / 4 for x in range(4, 61)]
+    curve = pd.DataFrame({"殖利率 %": ys, "價格": [bond_price(face, coupon / 100, y / 100, years) for y in ys]}).set_index("殖利率 %")
+    st.line_chart(curve)
+    st.caption("曲線向下彎：殖利率與價格反向，且殖利率越低、價格上漲越快（凸性）。")
+
+    st.markdown(
+        """
+### 存續期間 (Duration)：衡量債券對利率有多敏感
+粗略理解：**存續期間 ≈ 殖利率每變動 1%，價格反方向變動的百分比**。
+- 年限越長、票息越低 → 存續期間越大 → 越敏感
+- 2022 年長天期公債 ETF（如 TLT，存續期間約 17 年）暴跌三成以上，就是因為殖利率快速上升
+
+### 債券的主要風險
+| 風險 | 說明 |
+|---|---|
+| 利率風險 | 利率上升，價格下跌（存續期間決定幅度） |
+| 信用風險 | 發行人還不出錢（公債低、垃圾債高） |
+| 通膨風險 | 固定票息的購買力被通膨侵蝕 |
+"""
+    )
+    takeaway("殖利率與價格反向", "存續期間越長，對利率越敏感", "持有到期且不違約，報酬 ≈ 買入時的殖利率")
+    quiz("b1", "市場利率上升時，已發行的固定票息債券價格會？",
+         ["上升", "下降", "不變", "無法判斷"], 1, "因為新債券給的利息更高，舊債券必須降價才有吸引力。")
+    quiz("b2", "同樣殖利率變動 1%，哪一種債券價格波動最大？",
+         ["2 年期公債", "10 年期公債", "30 年期公債", "三個一樣"], 2, "年限越長，存續期間越大。")
+
+
+def page_rates():
+    st.header("單元 3｜利率與殖利率曲線")
+    st.markdown(
+        """
+### 兩種「利率」不要搞混
+| | 聯邦基金利率 (Fed Funds Rate) | 公債殖利率 |
+|---|---|---|
+| 誰決定 | **Fed 開會直接設定**（FOMC，一年 8 次） | **市場交易**形成 |
+| 期限 | 隔夜（銀行間借錢） | 2 年、10 年、30 年等 |
+| 代表 | 短期資金成本 | 市場對「未來利率 + 通膨 + 風險」的預期 |
+
+Fed 只直接控制最短的那端；長天期殖利率反映**市場預期**：未來 Fed 會把利率維持在哪、通膨會多高、要多少補償。
+所以有時候 Fed 降息，10 年期殖利率反而上升（市場擔心通膨或赤字）。
+
+### 殖利率曲線 (Yield Curve)
+把不同年限的公債殖利率連成線：
+- **正常**：長天期 > 短天期（借越久要越高的報酬）
+- **平坦**：差距縮小，市場預期成長放緩
+- **倒掛**：短天期 > 長天期（常見指標：2 年期 > 10 年期）
+"""
+    )
+
+    st.subheader("🧮 互動：四種殖利率曲線形狀（示意數字）")
+    shape = st.radio("選擇形狀", ["正常", "平坦", "倒掛", "陡峭化（降息後）"], horizontal=True)
+    terms = ["3M", "2Y", "5Y", "10Y", "30Y"]
+    shapes = {
+        "正常": [2.0, 2.6, 3.2, 3.8, 4.2],
+        "平坦": [4.0, 4.0, 4.0, 4.1, 4.3],
+        "倒掛": [5.3, 4.8, 4.3, 4.1, 4.3],
+        "陡峭化（降息後）": [3.0, 3.1, 3.5, 4.1, 4.6],
+    }
+    notes = {
+        "正常": "經濟穩定擴張，Fed 利率不高。",
+        "平坦": "市場預期成長放緩，或 Fed 升息接近尾聲。",
+        "倒掛": "Fed 把短利升很高，市場預期未來會降息／經濟轉弱。歷史上多次先於衰退出現，但「領先時間」從數個月到兩年不等，不是精準時鐘。",
+        "陡峭化（降息後）": "短利下降、長利仍高。常見於降息初期或復甦期。",
+    }
+    st.line_chart(pd.DataFrame({"殖利率 %": shapes[shape]}, index=terms))
+    st.write(notes[shape])
+    spread = shapes[shape][3] - shapes[shape][1]
+    st.metric("10Y − 2Y 利差", f"{spread:+.2f} 個百分點")
+
+    st.markdown(
+        """
+### 為什麼倒掛被看作衰退訊號？
+銀行「借短放長」，短利高於長利時放款利差被壓縮，信用變緊；同時市場預期未來經濟差、Fed 要降息，才願意接受較低的長天期殖利率。
+2022–2024 年的倒掛持續了很長時間，衰退卻沒有立即出現——所以只能當作**風險提示**，不能當作買賣點。
+"""
+    )
+    takeaway("Fed 控制短端，市場決定長端", "殖利率曲線反映市場對未來利率與成長的預期", "倒掛是風險訊號，不是精準的衰退時鐘")
+    quiz("r1", "下列哪一個是由 Fed 直接設定的？",
+         ["10 年期公債殖利率", "聯邦基金利率目標區間", "30 年房貸利率", "公司債殖利率"], 1,
+         "其他三個都是由市場供需或其他機構定價，只是會受 Fed 影響。")
+
+
+def page_stock_bond():
+    st.header("單元 4｜股票與債券的關係")
+    st.markdown(
+        """
+### 為什麼兩者會互相影響？
+1. **折現率**：公債殖利率是所有資產折現率的基準。殖利率↑ → 股票估值被壓低（單元 1）。
+2. **資金競爭**：債券殖利率變高，相對來說股票的吸引力變低——「有 5% 無風險收益，為什麼要冒險買股票？」
+3. **企業成本**：利率高，公司借錢成本上升，獲利受壓。
+
+### 股權風險溢價 (Equity Risk Premium, ERP)
+一個常用的粗略比較：
+
+> **ERP ≈ 股票盈餘殖利率 (1/PE) − 10 年期公債殖利率**
+
+這代表「買股票比買無風險公債多賺多少補償」。越低，代表股票相對貴（補償不足）。
+"""
+    )
+
+    st.subheader("🧮 互動：股票相對債券便不便宜？")
+    c1, c2 = st.columns(2)
+    pe = c1.slider("大盤本益比 (P/E)", 10.0, 35.0, 22.0, 0.5)
+    y10 = c2.slider("10 年期公債殖利率 %", 0.5, 8.0, 4.2, 0.1)
+    ey = 100 / pe
+    erp = ey - y10
+    m1, m2, m3 = st.columns(3)
+    m1.metric("股票盈餘殖利率", f"{ey:.2f}%")
+    m2.metric("10Y 公債殖利率", f"{y10:.2f}%")
+    m3.metric("股權風險溢價", f"{erp:+.2f}%")
+    st.bar_chart(pd.DataFrame({"%": [ey, y10]}, index=["股票盈餘殖利率", "10Y 公債殖利率"]))
+    if erp < 0:
+        st.warning("盈餘殖利率低於公債殖利率：股票沒有給出額外補償，要靠高成長來撐估值。")
+    elif erp < 2:
+        st.info("溢價偏低：股票相對債券的吸引力不高。")
+    else:
+        st.success("溢價較高：股票相對債券較有吸引力。")
+    st.caption("這只是一種粗略的相對估值框架；盈餘會變動，不能單靠它判斷買賣。")
+
+    st.markdown(
+        """
+### 股債走勢：蹺蹺板 or 同向？
+| 情境 | 股債關係 | 例子 |
+|---|---|---|
+| **成長／衰退擔憂主導** | **蹺蹺板**：股跌 → 資金避險買公債 → 債漲（殖利率↓） | 2008 金融海嘯、2020 年 3 月疫情初期 |
+| **通膨／升息主導** | **同向**：通膨升溫 → 殖利率↑ → 債跌，股票估值也被壓 → 股跌 | **2022**：S&P 500 約 −18%，美國綜合債券指數約 −13%，傳統 60/40 大虧 |
+
+重點：**股債負相關不是定律**。當市場最擔心的是「通膨」而不是「衰退」時，兩者往往一起跌。
+
+### 60/40 組合
+60% 股票 + 40% 債券是經典配置，靠股債低相關來降低波動。2022 年讓人重新體認：分散不等於永遠對沖，需要看當下的總經情境。
+"""
+    )
+    takeaway("公債殖利率是股票估值的錨", "ERP 衡量股票相對債券的補償", "主導因素是衰退擔憂 → 蹺蹺板；是通膨 → 可能同跌")
+    quiz("sb1", "2022 年股債同時大跌，主要原因是？",
+         ["企業獲利崩潰", "通膨高漲，Fed 快速升息，殖利率飆升", "美國公債違約", "美元大貶"], 1,
+         "升息壓低債券價格，也提高折現率壓縮股票估值。")
+    quiz("sb2", "10 年期公債殖利率不變，大盤本益比上升，股權風險溢價會？",
+         ["變大", "變小", "不變", "不一定"], 1, "P/E 上升 → 盈餘殖利率下降 → 差額縮小。")
+
+
+def page_fed():
+    st.header("單元 5｜美國升降息的影響")
+    st.markdown(
+        """
+### Fed 為什麼調利率？— 雙重使命 (Dual Mandate)
+1. **物價穩定**：長期通膨目標 2%（以 PCE 衡量）
+2. **充分就業**
+
+| | 升息（緊縮） | 降息（寬鬆） |
+|---|---|---|
+| 目的 | 通膨太高、經濟過熱 → 降溫 | 經濟疲弱、失業升高 → 刺激 |
+| 對借貸成本 | 上升 | 下降 |
+| 對消費與投資 | 抑制 | 鼓勵 |
+
+### 傳導機制：利率怎麼影響到你的資產？
+1. **借貸成本**：房貸、企業貸款、信用卡利率↑ → 消費與投資減少 → 經濟降溫
+2. **折現率**：估值模型的分母變大 → 股價承壓（成長股更明顯）
+3. **資金流向**：定存、貨幣基金收益變高 → 資金從風險資產回流
+4. **美元匯率**：美國利率相對高 → 美元走強 → 新興市場與跨國企業獲利受影響
+5. **財富效果與預期**：股價、房價下跌會影響消費信心
+"""
+    )
+
+    st.subheader("🧮 互動：升降息對不同類股的大致方向")
+    scen = st.radio("情境", ["升息循環", "降息循環（軟著陸）", "降息循環（衰退救火）"], horizontal=True)
+    table = {
+        "升息循環": [
+            ("科技／成長股", "偏負面", "折現率↑，遠期獲利打折較多"),
+            ("銀行", "短期偏正面", "淨利差擴大；但若存款流失、放款品質轉差則反轉"),
+            ("房地產／REITs", "偏負面", "融資成本↑、折現率↑"),
+            ("公用事業", "偏負面", "高配息被債券競爭"),
+            ("能源／原物料", "中性", "多半取決於通膨與需求"),
+        ],
+        "降息循環（軟著陸）": [
+            ("科技／成長股", "偏正面", "折現率↓，且經濟沒壞"),
+            ("銀行", "中性", "利差縮小，但放款需求回升"),
+            ("房地產／REITs", "偏正面", "融資成本↓"),
+            ("小型股", "偏正面", "對借款成本敏感，受惠最直接"),
+            ("公用事業", "偏正面", "配息吸引力↑"),
+        ],
+        "降息循環（衰退救火）": [
+            ("科技／成長股", "不一定", "利率下降，但獲利預期同時下修"),
+            ("銀行", "偏負面", "壞帳上升"),
+            ("防禦股（必需消費、醫療）", "相對抗跌", "需求穩定"),
+            ("公債", "偏正面", "殖利率下降，價格上漲"),
+            ("景氣循環股", "偏負面", "需求下滑"),
+        ],
+    }
+    st.dataframe(pd.DataFrame(table[scen], columns=["類別", "方向", "為什麼"]), hide_index=True)
+
+    st.markdown(
+        """
+### 關鍵觀念：降息 ≠ 一定漲
+**原因比動作重要。**
+- **預防性降息**（經濟沒壞、通膨降溫，Fed 微調）：通常對股市友善，如 1995、2019。
+- **衰退性降息**（經濟惡化，Fed 被迫救火）：降息再多，獲利衰退仍可能讓股市下跌，如 2001、2008。
+
+### 另一個關鍵：市場看的是「預期」，不是「結果」
+利率期貨早已把「預期的升降息」反映在價格中。決議當天真正造成波動的，是**與預期的差距**：
+- 說好升 0.25%，結果升 0.25% → 影響小
+- 市場預期降息，Fed 說「還不急」→ 即使沒動作，市場也可能下跌
+
+所以 Fed 官員的**談話、點陣圖 (dot plot)、會議記錄**與利率決議同樣重要。
+
+### 其他 Fed 工具
+- **QE 量化寬鬆**：買債券、擴表，壓低長期利率，增加市場流動性
+- **QT 量化緊縮／縮表**：讓債券到期不再買回，收回流動性
+- 這兩者是**利率以外的第二套油門和煞車**
+"""
+    )
+    st.caption("2022 年 3 月至 2023 年 7 月，Fed 將基準利率從 0–0.25% 升至 5.25–5.50%，是數十年來最快的升息循環之一；2024 年 9 月開始降息。")
+    takeaway("Fed 看通膨與就業；利率透過借貸、折現率、資金流向、匯率影響市場",
+             "降息的原因比降息本身重要", "市場交易的是預期差，不是決議本身")
+    quiz("f1", "下列哪種情況下，降息對股市通常最不利？",
+         ["通膨降溫，Fed 預防性微調", "經濟快速惡化，Fed 緊急降息", "經濟成長穩定", "失業率很低"], 1,
+         "降息是因為經濟在惡化，獲利下滑的衝擊可能大過利率下降的好處。")
+    quiz("f2", "Fed 如期升息 0.25%，但表示「之後可能不再升息」，市場通常如何解讀？",
+         ["偏鷹（緊縮）", "偏鴿（寬鬆）", "無法解讀", "與預期無關"], 1,
+         "指引比動作更重要，鴿派的前瞻指引通常提振風險資產。")
+
+
+def page_macro():
+    st.header("單元 6｜通膨與重要經濟指標")
+    st.markdown(
+        """
+Fed 的決策、債券殖利率與股市，都圍繞著幾組數據在跳舞。
+
+### 通膨指標
+| 指標 | 發布單位 | 重點 |
+|---|---|---|
+| **CPI** | 勞工統計局 (BLS) | 消費者物價；市場最先看到、波動最受關注 |
+| **核心 CPI** | 同上 | 扣除食品與能源，看趨勢 |
+| **PCE / 核心 PCE** | 經濟分析局 (BEA) | **Fed 官方偏好的通膨指標**，目標 2% |
+
+### 就業指標
+| 指標 | 說明 |
+|---|---|
+| **非農就業 (NFP)** | 每月第一個週五公布的新增就業人數 |
+| **失業率** | 衡量勞動市場鬆緊 |
+| **初領失業救濟金** | 每週公布，較即時 |
+| **薪資成長** | 薪資過快 → 通膨壓力 |
+
+### 成長與景氣指標
+- **GDP**：經濟總產出（季）
+- **ISM 製造業／服務業 PMI**：> 50 擴張，< 50 收縮
+- **零售銷售**、**消費者信心**
+
+### 「壞消息就是好消息」？
+當市場擔心的是**通膨**時，強勁的就業／經濟數據會升高 Fed 升息預期，反而讓股市下跌；疲弱的數據則可能被解讀為降息有望而上漲。
+但當市場擔心的是**衰退**時，數據變差就是真的壞消息。**同一份數據，在不同的市場主軸下，反應可能完全相反。**
+"""
+    )
+
+    st.subheader("🧮 互動：數據意外 → 市場反應的推演")
+    theme = st.radio("目前市場主軸", ["擔心通膨／Fed 升息", "擔心經濟衰退"], horizontal=True)
+    data = st.radio("本月非農就業", ["遠優於預期", "符合預期", "遠遜於預期"], horizontal=True)
+    result = {
+        ("擔心通膨／Fed 升息", "遠優於預期"): ("利空", "薪資與就業過熱 → 升息預期↑ → 殖利率↑、股市承壓"),
+        ("擔心通膨／Fed 升息", "符合預期"): ("中性", "沒有意外，市場回到原有走勢"),
+        ("擔心通膨／Fed 升息", "遠遜於預期"): ("偏利多", "通膨壓力減輕 → 降息預期↑ → 殖利率↓（俗稱壞消息是好消息）"),
+        ("擔心經濟衰退", "遠優於預期"): ("利多", "衰退疑慮緩解，企業獲利預期上修"),
+        ("擔心經濟衰退", "符合預期"): ("中性", "沒有意外"),
+        ("擔心經濟衰退", "遠遜於預期"): ("利空", "衰退風險升高 → 股市下跌，資金湧向公債、殖利率下降"),
+    }
+    tag, why = result[(theme, data)]
+    st.metric("對股市的傾向", tag)
+    st.write(why)
+
+    takeaway("PCE 是 Fed 最看重的通膨指標，CPI 市場最即時", "市場反應取決於「與預期的差距」與「當下主軸」",
+             "要先判斷市場現在在擔心什麼：通膨還是衰退")
+    quiz("m1", "Fed 官方最偏好用來衡量通膨的指標是？",
+         ["CPI", "核心 PCE", "PPI", "非農就業"], 1, "Fed 的 2% 長期目標是以 PCE 物價指數衡量。")
+
+
+def page_cycle():
+    st.header("單元 7｜景氣循環與資產配置")
+    st.markdown(
+        """
+### 經濟的四個階段（簡化版）
+| 階段 | 成長 | 通膨 | Fed | 傾向表現較好的資產 |
+|---|---|---|---|---|
+| **復甦** | 回升 | 低 | 寬鬆、低利率 | 股票（尤其小型股、景氣循環股）、信用債 |
+| **擴張** | 強 | 逐漸升高 | 開始轉向中性 | 股票、商品 |
+| **過熱／晚期** | 高但趨緩 | 高 | 升息 | 能源、原物料、短天期債、現金 |
+| **衰退** | 負 | 下降 | 降息 | 公債（長天期）、防禦股、黃金 |
+
+這只是粗略框架；每次循環的細節都不同，不要把它當成精準預測工具。
+
+### 把前面學的串起來：一個思考流程
+1. **看通膨**：高 → Fed 傾向升息／維持高利率；低 → 有降息空間
+2. **看成長與就業**：決定 Fed 是「預防性」還是「救火式」調整
+3. **看殖利率曲線**：市場怎麼定價未來利率路徑
+4. **看股票估值（ERP）**：相對債券貴不貴
+5. **看股債相關性**：目前由通膨還是衰退主導？決定債券能不能當避險
+
+### 幾個基本原則
+- **多元分散**：股、債、現金、實物資產，不要單押一個情境
+- **時間夠長就能承受波動**：資金多久不用，決定可承擔的股票比例
+- **定期定額**：降低「買在最高點」的心理壓力
+- **了解自己持有的風險來源**：你的投資組合其實押注什麼總經情境？
+"""
+    )
+
+    st.subheader("🧮 互動：股債比例與波動（簡化模擬）")
+    st.caption("以下為示意用的長期假設值，非預測：股票 年化報酬 8%、波動 16%；債券 4%、波動 6%；兩者相關係數可調。")
+    c1, c2 = st.columns(2)
+    w = c1.slider("股票比例 %", 0, 100, 60, 5)
+    rho = c2.slider("股債相關係數", -0.5, 0.8, 0.0, 0.1, help="2008 年多為負；2022 年轉為明顯正相關。")
+    ws, wb = w / 100, 1 - w / 100
+    ret = ws * 8 + wb * 4
+    vol = (ws**2 * 16**2 + wb**2 * 6**2 + 2 * ws * wb * rho * 16 * 6) ** 0.5
+    m1, m2, m3 = st.columns(3)
+    m1.metric("預期年化報酬", f"{ret:.1f}%")
+    m2.metric("年化波動", f"{vol:.1f}%")
+    m3.metric("報酬／波動", f"{ret / vol:.2f}" if vol else "-")
+    ws_range = list(range(0, 101, 5))
+    vols = [((x / 100) ** 2 * 256 + (1 - x / 100) ** 2 * 36 + 2 * (x / 100) * (1 - x / 100) * rho * 96) ** 0.5 for x in ws_range]
+    st.line_chart(pd.DataFrame({"年化波動 %": vols}, index=pd.Index(ws_range, name="股票比例 %")))
+    st.caption("相關係數越低（越負），分散效果越好；相關係數升高時，債券的避險效果變差。")
+
+    takeaway("先判斷通膨與成長的組合，再看 Fed 的反應", "股債相關性會變，分散要看情境", "資產配置的核心是承受風險的能力，而不是預測")
+    quiz("c1", "在通膨高、Fed 持續升息的階段，通常相對較不吃虧的資產是？",
+         ["長天期公債", "高估值成長股", "短天期債券／現金", "高槓桿房地產"], 2,
+         "短天期債券存續期間小，且能跟著新的高利率滾動。")
+
+
+def page_final():
+    st.header("單元 8｜總複習測驗")
+    st.caption("答完後可以看總成績與錯題對應的單元。")
+    quiz("z1", "一張票息 3% 的 10 年期公債，市場殖利率升到 5%，價格會？",
+         ["高於面額", "等於面額", "低於面額", "無法判斷"], 2,
+         "殖利率高於票面利率，債券折價交易。")
+    quiz("z2", "Fed 調降隔夜利率，但 10 年期殖利率反而上升，最合理的原因是？",
+         ["不可能發生", "市場擔心通膨或赤字，要求更高的補償", "債券價格上升", "Fed 沒有影響力"], 1,
+         "長端殖利率由市場決定，反映通膨與風險溢價預期。")
+    quiz("z3", "ERP（股權風險溢價）下降，代表？",
+         ["股票相對債券變便宜", "股票相對債券變貴", "債券殖利率下降", "與估值無關"], 1,
+         "補償變少，通常是估值變貴（或債券殖利率上升）。")
+    quiz("z4", "最適合解釋「2022 年 60/40 組合同時虧損」的一句話是？",
+         ["股債永遠負相關", "通膨與升息主導時，股債可能同向下跌", "債券不會跌", "Fed 不會升息"], 1,
+         "相關性取決於當時的主導因素。")
+    quiz("z5", "市場已完全預期 Fed 降息 0.25%，結果 Fed 降息 0.25% 並暗示短期不再降，常見反應？",
+         ["上漲", "可能下跌（偏鷹的指引）", "完全不變", "債券價格一定上升"], 1,
+         "市場交易的是預期差與前瞻指引。")
+
+    scores = st.session_state.get("scores", {})
+    total = len(scores)
+    right = sum(scores.values())
+    st.divider()
+    st.subheader("你的成績")
+    st.metric("全課程已作答題數正確", f"{right} / {total}" if total else "尚未作答")
+    wrong = [k for k, v in scores.items() if not v]
+    unit_of = {"s": "單元 1", "b": "單元 2", "r": "單元 3", "sb": "單元 4", "f": "單元 5", "m": "單元 6", "c": "單元 7", "z": "總複習"}
+    if wrong:
+        units = sorted({unit_of[k.rstrip("0123456789")] for k in wrong})
+        st.write("建議回頭複習：" + "、".join(units))
+    if st.button("清除所有成績"):
+        st.session_state["scores"] = {}
+        st.rerun()
+
+
+def page_glossary():
+    st.header("📖 名詞速查表")
+    rows = [
+        ("FOMC", "聯邦公開市場委員會，Fed 決定利率的會議，一年 8 次"),
+        ("聯邦基金利率", "銀行間隔夜拆借利率，Fed 設定目標區間"),
+        ("殖利率 (YTM)", "持有債券到期的年化報酬率"),
+        ("存續期間 (Duration)", "債券價格對利率的敏感度"),
+        ("殖利率曲線", "不同年限公債殖利率的連線"),
+        ("倒掛", "短天期殖利率高於長天期殖利率"),
+        ("基點 (bp)", "0.01%；25bp = 0.25%"),
+        ("QE / QT", "量化寬鬆（擴表）／量化緊縮（縮表）"),
+        ("點陣圖 (Dot Plot)", "FOMC 委員對未來利率路徑的預測分布"),
+        ("鷹派／鴿派", "偏好緊縮（升息）／偏好寬鬆（降息）"),
+        ("本益比 (P/E)", "股價 ÷ 每股盈餘"),
+        ("股權風險溢價 (ERP)", "股票報酬相對無風險利率的額外補償"),
+        ("折現率", "把未來現金流換成現值使用的利率"),
+        ("CPI / PCE", "兩種通膨指標；Fed 偏好核心 PCE"),
+        ("NFP", "非農就業人數，每月第一個週五公布"),
+        ("軟著陸", "通膨降下來但沒有出現衰退"),
+        ("60/40", "60% 股票 + 40% 債券的經典組合"),
     ]
+    st.dataframe(pd.DataFrame(rows, columns=["名詞", "意思"]), hide_index=True)
+
+
+# ====================================================
+# 導覽
+# ====================================================
+
+PAGES = {
+    "🏠 課程首頁": page_home,
+    "1️⃣ 股票的價值從哪來": page_stock,
+    "2️⃣ 債券基礎": page_bond,
+    "3️⃣ 利率與殖利率曲線": page_rates,
+    "4️⃣ 股債關係": page_stock_bond,
+    "5️⃣ Fed 升降息的影響": page_fed,
+    "6️⃣ 通膨與經濟指標": page_macro,
+    "7️⃣ 景氣循環與資產配置": page_cycle,
+    "8️⃣ 總複習測驗": page_final,
+    "📖 名詞速查表": page_glossary,
 }
 
-# ====================================================
-# 2. 函數區
-# ====================================================
-
-# 用於顯示筆記的內容
-def display_investment_notes(notes, selected_heading):
-    """根據選定的標題，顯示對應的筆記內容。"""
-    st.title(notes['title'])
-    st.markdown("---")
-    
-    for section in notes['sections']:
-        if section['heading'] == selected_heading:
-            
-            st.header(section['heading'])
-            
-            if 'points' in section:
-                for point in section['points']:
-                    st.markdown(f"- {point}")
-            
-            if 'subsections' in section:
-                for subsection in section['subsections']:
-                    st.subheader(subsection['sub_heading'])
-                    for point in subsection['sub_points']:
-                        st.markdown(f"- {point}")
-            break
-
-
-# 您的客製化「大神」策略判斷區
-# 為了視覺化拆解，我們讓這個函數返回更多細節
-def generate_custom_judgement(price, ma50, ma200, pe, rsi):
-    """結合技術面和基本面，給出最終判斷，並返回詳細判斷結果。"""
-    
-    # 規則定義：
-    # Rule 1: 趨勢判斷 (Trend Filter) - 價格必須在 200MA 之上
-    trend_ok = (price > ma200)
-    
-    # Rule 2: 價值判斷 (Value Filter) - P/E 低於 25 倍 (避免高估值)
-    pe_val = float(pe) if pe != '無' else 999 
-    value_ok = (pe != '無' and pe_val < 25)
-
-    # Rule 3: 短期動能 (RSI) - 避免 RSI 過熱 (> 70)
-    rsi_ok = (rsi < 70)
-    
-    # 結合判斷
-    if trend_ok and value_ok and rsi_ok:
-        final_judgement = "🌟 大師買入區間：趨勢強勁、估值合理、動能未過熱！"
-        signal_color = "success"
-    elif trend_ok and not rsi_ok:
-        final_judgement = "⚠️ 趨勢強勁，但 RSI 過熱 ( > 70)，小心短線拉回。"
-        signal_color = "warning"
-    elif not trend_ok and value_ok:
-        final_judgement = "📉 價值低估但趨勢偏弱，適合長期觀察或左側分批。"
-        signal_color = "info"
-    else:
-        final_judgement = "🚧 訊號不確定，保持觀望或等待明確右側訊號。"
-        signal_color = "error"
-        
-    # 返回最終結論和詳細判斷
-    return final_judgement, signal_color, trend_ok, value_ok, rsi_ok
-
-
-# ====================================================
-# 3. 頁面佈局與主體邏輯
-# ====================================================
-
-st.set_page_config(page_title="股票投資白話儀表板", layout="wide")
-
-# --- 側邊欄控制項 ---
 with st.sidebar:
-    st.header("⚙️ 模式切換與參數設定")
-
-    # 模式切換
-    mode = st.radio(
-        "請選擇儀表板模式",
-        ("股票分析", "文章複習"),
-        index=0 
-    )
-    
+    st.title("📚 美股基本面入門課")
+    choice = st.radio("課程目錄", list(PAGES), label_visibility="collapsed")
+    scores = st.session_state.get("scores", {})
+    if scores:
+        st.divider()
+        st.caption(f"測驗進度：答對 {sum(scores.values())} / 已作答 {len(scores)} 題")
     st.divider()
+    st.caption("學習筆記，非投資建議。")
 
-    # 股票分析參數
-    if mode == "股票分析":
-        st.subheader("🔍 查詢設定")
-        ticker = st.text_input("請輸入股票代號", value="NVDA").upper()
-        st.caption("請直接輸入美股代號 (如 NVDA, AAPL, TSM)。") 
-        run_btn = st.button("開始分析")
-    else:
-        # 文章複習選單
-        st.subheader("📚 複習重點選單")
-        review_options = [s['heading'] for s in investment_notes_full['sections']]
-        review_selection = st.radio(
-            "請選擇筆記章節",
-            review_options,
-            index=0
-        )
-        ticker = None 
-        run_btn = False
-
-
-# --- 主體內容顯示 ---
-
-if mode == "文章複習":
-    display_investment_notes(investment_notes_full, review_selection)
-
-elif mode == "股票分析":
-    st.title(f"📈 股票基本面與趨勢分析: {ticker}")
-    
-    if run_btn:
-        with st.spinner(f'正在分析 {ticker}...'):
-            try:
-                # 抓取資料
-                stock = yf.Ticker(ticker)
-                # 使用 1 年期獲取足夠的 200MA 數據
-                df = stock.history(period="1y") 
-                info = stock.info
-                
-                if df.empty:
-                    st.error("❌ 找不到資料，請確認代號是否正確！")
-                    st.stop()
-                
-                # --- 新增指標計算 ---
-                price = df['Close'].iloc[-1]
-                change = price - df['Close'].iloc[-2]
-                ma50 = df['Close'].rolling(50).mean().iloc[-1]
-                ma200 = df['Close'].rolling(200).mean().iloc[-1] 
-                pe = info.get('trailingPE', '無')
-                
-                # 52 週高低點
-                high_52w = info.get('fiftyTwoWeekHigh', df['Close'].max())
-                low_52w = info.get('fiftyTwoWeekLow', df['Close'].min())
-                
-                # 計算相對位階 (避免除以零)
-                if (high_52w - low_52w) > 0.01:
-                    position_52w = ((price - low_52w) / (high_52w - low_52w)) * 100
-                else:
-                    position_52w = 0 # 股價沒有波動或數據缺失
-                
-                # 簡易財務檢查 (負債權益比)
-                debt_equity = info.get('debtToEquity', '無') # 單位是百分比 (e.g., 50.0)
-
-                # 計算 BBands, MACD, RSI
-                bbands = df.ta.bbands(length=20, std=2.0, append=True) 
-                macd_data = df.ta.macd(close='Close')
-                rsi = df.ta.rsi(close='Close').iloc[-1]
-
-
-                # --- 顯示基本 metrics (6 欄位) ---
-                st.subheader("📊 關鍵財務與技術指標")
-                col1, col2, col3, col4, col5, col6 = st.columns(6)
-                col1.metric("目前股價", f"${price:.2f}", f"{change:.2f}")
-                col2.metric("50日均線", f"${ma50:.2f}")
-                col3.metric("200日均線", f"${ma200:.2f}") 
-                col4.metric("RSI (14)", f"{rsi:.1f}")
-                col5.metric("本益比 PE", f"{pe}")
-                
-                # 負債健康狀態
-                debt_status_val = f"{debt_equity:.1f}%" if isinstance(debt_equity, (int, float)) else "無數據"
-                if isinstance(debt_equity, (int, float)) and debt_equity > 150: # 負債權益比 > 150% 視為偏高
-                    debt_status_delta = "偏高 (> 150%)"
-                    debt_status_color = "inverse"
-                else:
-                    debt_status_delta = "良好"
-                    debt_status_color = "off"
-                col6.metric("負債權益比", debt_status_val, debt_status_delta, delta_color=debt_status_color)
-                
-                # --- 新增 52 週位階分析 ---
-                st.markdown("##### 📍 價格相對位階分析")
-                col_52_1, col_52_2, col_52_3 = st.columns(3)
-                col_52_1.metric("52 週高點", f"${high_52w:.2f}")
-                col_52_2.metric("52 週低點", f"${low_52w:.2f}")
-                
-                # 位階顏色判斷: 高於 80% 警告追高, 低於 20% 警告下跌
-                if position_52w > 80:
-                    delta_color = "inverse"
-                elif position_52w < 20:
-                    delta_color = "normal" 
-                else:
-                    delta_color = "off"
-
-                col_52_3.metric("目前相對位階", f"{position_52w:.1f}%", help="（目前價相對於 52 週低點到高點的百分比位置）", delta_color=delta_color)
-
-                st.divider()
-                
-                # --- 自定義策略訊號 與 視覺化拆解 ---
-                judgement_txt, color_status, trend_ok, value_ok, rsi_ok = generate_custom_judgement(price, ma50, ma200, pe, rsi)
-                st.subheader("💡 您的客製化「大神」策略訊號")
-                
-                if color_status == "success":
-                    st.success(judgement_txt)
-                elif color_status == "warning":
-                    st.warning(judgement_txt)
-                elif color_status == "info":
-                    st.info(judgement_txt)
-                else:
-                    st.error(judgement_txt)
-                
-                # 策略備註
-                st.caption(
-                    "目前的策略定義：**趨勢** (價格 > 200MA)、**價值** (P/E < 25)、**動能** (RSI < 70)。"
-                )
-
-                # 視覺化拆解
-                st.markdown("##### 📝 條件達成細節")
-                col_c1, col_c2, col_c3 = st.columns(3)
-                
-                col_c1.markdown(f"**趨勢過濾 (200MA)：** {'✅ 達成' if trend_ok else '❌ 未達成'}")
-                col_c2.markdown(f"**價值過濾 (PE < 25)：** {'✅ 達成' if value_ok else '❌ 未達成'}")
-                col_c3.markdown(f"**動能過濾 (RSI < 70)：** {'✅ 達成' if rsi_ok else '❌ 未達成'}")
-
-                st.divider()
-
-                # --- 走勢圖與指標圖 ---
-                
-                # 1. 主圖區 (股價, 50MA, 200MA, BBands)
-                st.subheader("📈 股價走勢圖 (含均線與布林通道)")
-                chart_data = df[['Close']].copy()
-                chart_data['50MA'] = df['Close'].rolling(50).mean()
-                chart_data['200MA'] = df['Close'].rolling(200).mean()
-                
-                if 'BBU_20_2.0' in df.columns:
-                    chart_data['BB_Upper'] = df['BBU_20_2.0'] 
-                    chart_data['BB_Lower'] = df['BBL_20_2.0']
-                    st.caption("布林通道已繪製。")
-                else:
-                    st.warning("⚠️ 警告：布林通道 (BBands) 資料不足或計算失敗，已跳過繪製。")
-                
-                st.line_chart(chart_data)
-
-
-                # 2. MACD 副圖區
-                st.subheader("📊 MACD 指標圖")
-                st.caption(
-                    "定義：**平滑異同移動平均線**。看點：**MACD 線**（快線）上穿 **Signal 線**（慢線）為金叉（買入），MACD 線下穿 Signal 線為死叉（賣出）。指標線靠近零軸代表震盪整理。"
-                )
-                macd_chart_data = macd_data[['MACD_12_26_9', 'MACDh_12_26_9', 'MACDs_12_26_9']].copy()
-                macd_chart_data.columns = ['MACD Line', 'Histogram', 'Signal Line']
-                st.line_chart(macd_chart_data)
-                
-                # 3. RSI 副圖區
-                st.subheader("📈 RSI (相對強弱指標)")
-                st.caption(
-                    "定義：**相對強弱指標**。衡量買賣雙方力量的強弱。看點：**RSI > 70** 為超買（短線易拉回），**RSI < 30** 為超賣（短線易反彈）。"
-                )
-                st.line_chart(df.ta.rsi(close='Close'))
-                
-                st.divider()
-                
-                # --- 新聞區 ---
-                st.subheader(f"🗞️ {ticker} 最新新聞 (英文)")
-
-                try:
-                    news_data = stock.news 
-                    
-                    if news_data:
-                        for i, article in enumerate(news_data[:5]):
-                            title = article.get('title', '標題遺失')
-                            link = article.get('link', '#')
-                            publisher = article.get('publisher', '未知來源')
-                            
-                            st.markdown(f"**[{title}]({link})**")
-                            st.caption(f"來源：{publisher}")
-                    else:
-                        st.info("暫無相關新聞資訊。")
-
-                except Exception as news_e:
-                    st.error(f"❌ 新聞資料抓取失敗。錯誤訊息: {news_e}")
-
-
-            except Exception as e:
-                st.error(f"發生錯誤：請檢查代號是否正確。錯誤訊息: {e}")
+PAGES[choice]()
